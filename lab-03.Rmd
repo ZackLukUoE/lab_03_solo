@@ -34,24 +34,26 @@ Are there missing values?
 
 ```{r}
 # explore the types of the columns in jan_feb_flights
-
+jan_feb_flights |> glimpse() #returns the dataframe with variables as individual rows & includes values, but helpful to see data types
 ```
 
 ```{r}
 # which columns are integer
-
+jan_feb_flights |> select(where(is.integer)) |> names()
 
 # which columns are double
-
+jan_feb_flights |> select(where(is.double)) |> names()
 
 # which columns are character
-
+jan_feb_flights |> select(where(is.character)) |> names()
 
 ```
 
 ```{r}
 # which columns contain NA's
-
+jan_feb_flights |>
+  select(where(anyNA)) |> 
+  names()
 ```
 
 **Summary:**  
@@ -73,44 +75,66 @@ _Your answer here_
 
 ## 2.1 Code
 
-```{r eval=FALSE} 
+```{r eval=TRUE} 
 ## REMEMBER TO SET eval=TRUE
 
 # join the datasets
 jan_feb_flights <- jan_feb_flights %>%
-  ____________(weather, by = c(______________________)) 
+  left_join(weather, by = c("origin", "year", "month", "day", "hour")) 
+jan_feb_flights
 ```
 
 ```{r}
 # is there a difference in wind speed when wind_gust is missing vs not missing?
+with_wind_gust <- jan_feb_flights |>
+  filter(is.na(wind_gust)) |> 
+  summarise(mean(wind_speed, na.rm = TRUE))
+with_wind_gust
 
-
-
+without_wind_gust <- jan_feb_flights |>
+  filter(! is.na(wind_gust)) |> 
+  summarise(mean(wind_speed, na.rm = TRUE))
+without_wind_gust
 ```
 
 Describe the difference in wind speed when wind_gust is missing vs not missing:
 
 _Your answer here_
-
-```{r eval=FALSE} 
+Average wind speeds with and without gusts have a difference of approximately 10 units.
+```{r eval=TRUE} 
 ## REMEMBER TO SET eval=TRUE
 
 # create a new variable, gust_present
 jan_feb_flights <- jan_feb_flights %>%
-  mutate(gust_present = _______________)
+  mutate(gust_present = is.na(wind_gust)) #is.na() in this case returns logical values
+jan_feb_flights
 ```
 
 
 ```{r}
 # is there a relationship between gust_present and dep_delay?
+dep_delay_gust_present <- jan_feb_flights |> 
+  filter(gust_present == TRUE) |> 
+  summarise(
+    mean = mean(dep_delay, ,na.rm = TRUE),
+    sd = sd(dep_delay, na.rm = TRUE)
+    )
+dep_delay_gust_present
 
+dep_delay_gust_not_present <- jan_feb_flights |> 
+  filter(gust_present == FALSE) |> 
+  summarise(
+    mean = mean(dep_delay, ,na.rm = TRUE),
+    sd = sd(dep_delay, na.rm = TRUE)
+    )
+dep_delay_gust_not_present
 
 ```
 
 Describe the relationship between gust_present and dep_delay you see (if any).
 
 _Your answer here_
-
+Standard deviation is similar, but when gust is present, the delay times are on average, slightly lower.
 ## 2.1 Reflection
 
 Was GenAI helpful as a navigator? Did it ask you questions to guide your thinking?
@@ -131,28 +155,33 @@ jfk_flights <- jan_feb_flights %>%
 ```
 
 
-```{r eval=FALSE} 
+```{r eval=TRUE} 
 ## REMEMBER TO SET eval=TRUE
 
 # Compute the sample mean
-mean_dep_delay <- jfk_flights %>% ________(mean_jfk = mean(dep_delay)) %>% pull(mean_jfk)
+mean_dep_delay <- jfk_flights %>% summarise(mean_jfk = mean(dep_delay)) %>% pull(mean_jfk)
 
 # Construct bootstrap distribution
 set.seed(99)  # for reproducibility
 boot_dist <- jfk_flights %>%
-  ________(response = _________) %>%
-  ________(reps = 1500, type = "bootstrap") %>%
-  ________(stat = _______)                 
+  specify(response = dep_delay) %>%
+  generate(reps = 1500, type = "bootstrap") %>%
+  calculate(stat = "mean")    
+boot_dist
 
 # Compute 95% confidence interval (percentile method)
-boot_dist %>% ...
-
+boot_bound <- boot_dist %>% 
+  summarise(
+    lower = quantile(stat, 0.025),
+    upper = quantile (stat, 0.975)
+  )
+boot_bound
 ```
 
 **Interpretation for the confidence interval**:
 
 _Your answer here_
-
+We are 95% confident, that the average departure delay times lie between 9.573518 and 10.64339 units (probably minutes).
 ## 3.2 Using base R
 
 The following code achieves the same using base R and a for loop. 
@@ -191,28 +220,35 @@ _Your answer here_
 
 **Goal:** For each airline, what are the mean and median arrival delays in Jan/Feb? Which is the worst on average?
 
-```{r eval=FALSE} 
+```{r eval=TRUE} 
 ## REMEMBER TO SET eval=TRUE
 
 # Join jan_feb_flights with airlines by carrier code
 jan_feb_flights <- jan_feb_flights %>%
-  ___________(airlines, by = "carrier")
+  left_join(airlines, by = "carrier")
+jan_feb_flights
 ```
 
 
 ```{r wrangling1}
 # Group by airline, summarize n, mean and median arrival delay
 # Arrange descending by mean delay
+stats <- jan_feb_flights |> 
+  group_by(carrier) |> 
+  summarise(
+    n = n(),
+    mean = mean(arr_delay, na.rm = TRUE),
+    median = median(arr_delay, na.rm = TRUE)
+  ) |> 
+  arrange(desc(mean))
 
-
-
-
+stats
 ```
 
 **Which airline(s) had the highest mean? Is there anything notable about the worst airline?**
 
 _Your answer here_
-
+OO has the highest mean at 107, however, it only has one entry in the data frame. 
 ## 4.1 Reflection
 
 What did GenAI help with? Was anything inaccurate, missing, or did you spot any typical "AI mistakes"? Or did you instead learn something new? Did you have to clarify or re-prompt?
